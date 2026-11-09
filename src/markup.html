@@ -1,0 +1,75 @@
+<div id="dga-rail"><i></i></div>
+
+<div class="shell">
+  <section class="card screen on" id="dga-s-intro">
+    <div class="eyebrow">Your Sales &amp; Marketing Growth Gap – Assessment</div>
+    <h1>Not sure what’s holding your business back? Take the <span style="white-space:nowrap">5-minute</span> assessment and find out.</h1>
+    <p class="lede">Thirteen quick questions about your products, customers, sales and marketing. At the end you see where your potential gaps are and the first area we recommend you investigate.</p>
+    <div class="meta">
+      <div><b>13 questions</b>About 5 minutes</div>
+      <div><b>5 areas</b>Scored separately</div>
+      <div><b>Instant results</b>Plus a copy by email</div>
+    </div>
+    <button class="btn" id="dga-start">Start the assessment <span class="arr">&rarr;</span></button>
+  </section>
+
+  <section class="card screen" id="dga-s-q">
+    <div class="steps" id="dga-steps"></div>
+    <div class="qhead"><span class="qnum" id="dga-qnum">01</span><span class="qof" id="dga-qof"></span></div>
+    <h2 id="dga-qtext"></h2>
+    <ul class="opts" id="dga-opts" role="radiogroup"></ul>
+    <div class="nav">
+      <button class="btn ghost" id="dga-back">&larr; Back</button>
+      <button class="btn" id="dga-next" disabled>Next <span class="arr">&rarr;</span></button>
+    </div>
+  </section>
+
+  <section class="card screen" id="dga-s-res">
+    <div class="eyebrow">Your results</div>
+    <h2 class="res-head">Your Sales &amp; Marketing Growth Gap</h2>
+    <p class="lede">How your answers map across five areas, and the first area we recommend you investigate.</p>
+
+    <div class="confirm" id="dga-confirm" hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span>A copy is on its way to <b id="dga-confirmmail"></b>.</span>
+    </div>
+
+    <div class="vault" id="dga-vault">
+      <div class="locked" id="dga-locked">
+        <div class="bars" id="dga-bars"></div>
+        <div class="rec" id="dga-rec"></div>
+      </div>
+
+      <div class="gate" id="dga-gate">
+        <div class="lock" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10.5" width="16" height="11" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+          </svg>
+        </div>
+        <h3>See the full breakdown</h3>
+        <p>Your potential gap in each area, the first area to investigate, and three practical next steps. We will send a copy to your inbox.</p>
+        <form class="email" id="dga-emailwrap" novalidate>
+          <input type="email" id="dga-mail" placeholder="you@company.com" aria-label="Work email" autocomplete="email" required>
+          <button class="btn" id="dga-send" type="submit">Unlock results <span class="arr">&rarr;</span></button>
+        </form>
+        <div class="err" id="dga-err" role="alert"></div>
+        <small>No newsletter. We will only follow up if you ask us to.</small>
+      </div>
+    </div>
+
+    <div class="cta" id="dga-post" hidden>
+      <div>
+        <b>Want to go through this with someone?</b>
+        <span>Twenty minutes, no pitch.</span>
+      </div>
+      <button class="btn" id="dga-book">Book a call <span class="arr">&rarr;</span></button>
+    </div>
+
+    <div class="nav" style="margin-top:22px">
+      <button class="btn ghost" id="dga-again">&larr; Start over</button><span></span>
+    </div>
+  </section>
+
+  </div>
