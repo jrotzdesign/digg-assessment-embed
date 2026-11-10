@@ -13,9 +13,9 @@
      The URL is public by design: no key lives here. */
   var ENDPOINT = 'https://digg-assessment.pages.dev/api/lead';
 
-  /* Where "Book a call" goes (opens in the same tab).
+  /* Where "Book a call" goes (opens in a new tab): Joselyne's booking page.
      null = show the old "Demo only" alert instead. */
-  var BOOK_URL = 'https://www.thediggagency.com/contact-us/';
+  var BOOK_URL = 'https://bookings.cloud.microsoft/bookwithme/user/9fc8ff08e6f34aeeb14b71b7244fb4f7%40TheDiggAgency.com?anonymous&ismsaljsauthenabled';
 
   /* ======================================================== */
 
@@ -289,7 +289,7 @@ __QUESTIONS__
       },700);
     }
     $('#dga-book').onclick=function(){
-      if(BOOK_URL){ window.location.href=BOOK_URL } else { alert('Demo only — this would open the booking link.') }
+      if(BOOK_URL){ window.open(BOOK_URL,'_blank','noopener') } else { alert('Demo only — this would open the booking link.') }
     };
   }
 

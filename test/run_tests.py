@@ -27,6 +27,8 @@ PATHS = {
     'P4_tie':    ([2, 0] + [1, 0,  0, 1,  0, 1,  2, 1,  1, 2], 'Too many priorities at once.'),
 }
 
+import re, os
+BOOK_URL = re.search(r"var BOOK_URL = '([^']+)'", open(os.path.join(os.path.dirname(__file__), '..', 'src', 'app.js')).read()).group(1)
 CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 _CACHE = {}
 
@@ -56,7 +58,7 @@ def new_page(browser, mobile):
         ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
     ctx.route('**/*', lambda r: r.abort() if any(b in r.request.url for b in BLOCK) else r.continue_())
     ctx.route('https://www.thediggagency.com/**', her_site)
-    ctx.route('**/contact-us/**', lambda r: r.fulfill(status=200, content_type='text/html', body='<title>contact stub</title>contact'))
+    ctx.route(BOOK_URL.split('?')[0].rstrip('/') + '**', lambda r: r.fulfill(status=200, content_type='text/html', body='<title>booking stub</title>booking'))
     page = ctx.new_page()
     page._errors, page._payloads, page._lead = [], [], {'status': 200, 'origins': []}
     def lead_api(route):
@@ -256,10 +258,14 @@ def run_device(pw, name, browser, mobile):
             emb_style['res'] = styles(pe, '#digg-assessment', ['.pick h3', '.pick p', '.pick h4', '.bar .top b', '.bar .lvl', '.cta b', '.btn', '.confirm'])
             pe.screenshot(path=f'{SHOTS}/{tag}-4-results.png', full_page=True)
             check(no_sideways(pe), 'no sideways scroll: unlocked results')
-            # Book a call -> contact page, same tab
-            with pe.expect_navigation():
+            # Book a call -> booking page in a new tab; the assessment stays put
+            before = pe.url
+            with pe.expect_popup() as pop:
                 pe.click('#dga-book')
-            check(pe.url.startswith('https://www.thediggagency.com/contact-us/'), f'Book a call opens the contact page in the same tab ({pe.url})')
+            tab = pop.value; tab.wait_for_load_state()
+            check(tab.url.startswith(BOOK_URL.split('?')[0]) and pe.url == before and tab.evaluate('window.opener') is None,
+                  f'Book a call opens {tab.url} in a new tab (noopener), page unchanged')
+            tab.close()
         if pname == 'P4_tie':
             pe.click('#dga-again'); pe.wait_for_timeout(500)
             reset = pe.evaluate('''() => [document.querySelector('#dga-s-intro').classList.contains('on'), document.querySelector('#dga-mail').value,
