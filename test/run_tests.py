@@ -29,6 +29,7 @@ PATHS = {
 
 import re, os
 BOOK_URL = re.search(r"var BOOK_URL = '([^']+)'", open(os.path.join(os.path.dirname(__file__), '..', 'src', 'app.js')).read()).group(1)
+VERSION = open(os.path.join(os.path.dirname(__file__), '..', 'VERSION')).read().strip()
 CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 _CACHE = {}
 
@@ -241,7 +242,7 @@ def run_device(pw, name, browser, mobile):
         check(state['gate'] == 'none' and state['post'] and 'jane.doe@acme-manufacturing.com' in state['confirm'], f'{pname}: unlocked, confirmation shown, CTA visible')
         check(len(pe._payloads) == 1, f'{pname}: one lead POSTed to /api/lead')
         p = pe._payloads[0] if pe._payloads else {}
-        check(p.get('source') == 'embed v1.0.1' and str(p.get('page', '')).startswith(EMB) and p.get('website') == ''
+        check(p.get('source') == 'embed v' + VERSION and str(p.get('page', '')).startswith(EMB) and p.get('website') == ''
               and pe._lead['origins'] == [EMB], f'{pname}: payload has source, page, empty honeypot; sent with Origin {pe._lead["origins"]}')
         exp = {
             'P1_all_A': lambda s: s['picks'] == 0 and s['nogaps'] and s['flagged'] == 0 and s['segs'] == 0,
@@ -320,6 +321,11 @@ def run_device(pw, name, browser, mobile):
     # ---------- 4. intro/question/gate styles vs production ----------
     ctx, pe = new_page(browser, mobile); open_embed(pe)
     ctx2, pp = new_page(browser, mobile); open_prod(pp)
+    intro_txt = [page.evaluate(f'''() => {{ const r = document.querySelector('{root}');
+        return [r.querySelector('h1').textContent, r.querySelector('p.lede').textContent, r.querySelector('.eyebrow').textContent,
+                [...r.querySelectorAll('.meta b')].map(b => b.textContent).join(' / ')]; }}''') for page, root in ((pe, '#digg-assessment'), (pp, '#view-assessment'))]
+    check(intro_txt[0] == intro_txt[1] == ['Not sure what’s holding your business back?', 'Take the 5-minute assessment and find out.',
+          'Your Sales & Marketing Growth Gap – Assessment', '13 questions / 5 areas / Instant results'], f'intro copy (embed = demo): {intro_txt[0]}')
     intro_sel = ['.card', 'h1', 'p.lede', '.meta b', '.meta div', '#{}start', '.eyebrow']
     compare_styles(styles(pp, '#view-assessment', [s.format('') for s in intro_sel]),
                    styles(pe, '#digg-assessment', [s.format('dga-') for s in intro_sel]), 'intro')
