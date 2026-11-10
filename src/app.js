@@ -6,11 +6,12 @@
 
   /* ======================= SETTINGS ======================= */
 
-  /* Where submitted leads go. null = demo mode: nothing is sent, the lead is
-     logged to the browser console. Set it to a webhook URL (WPForms, HubSpot,
-     Zapier...) to go live. This repo is public, so use an endpoint that is
-     safe to be public. */
-  var ENDPOINT = null;
+  /* Where submitted leads go: the /api/lead Function on the digg-assessment
+     Cloudflare Pages project. It emails the lead to Joselyne and the results copy
+     to the visitor, and only accepts requests from thediggagency.com and the demo
+     site. null = demo mode: nothing is sent, the lead is logged to the console.
+     The URL is public by design: no key lives here. */
+  var ENDPOINT = 'https://digg-assessment.pages.dev/api/lead';
 
   /* Where "Book a call" goes (opens in the same tab).
      null = show the old "Demo only" alert instead. */
@@ -28,7 +29,6 @@ __QUESTIONS__
   function boot(root){
     var $=function(s){return root.querySelector(s)};
     var ans=new Array(QUESTIONS.length).fill(null), i=0;
-    var rail=$('#dga-rail i');
 
     /* Height of anything pinned to the top of the viewport (the WP admin bar
        when logged in, or the site header if it is ever made sticky).
@@ -114,7 +114,6 @@ __QUESTIONS__
       }
       $('#dga-next').innerHTML = (i===QUESTIONS.length-1?'See my results':'Next')+' <span class="arr">&rarr;</span>';
       $('#dga-back').style.visibility = i===0?'hidden':'visible';
-      rail.style.width=(i/QUESTIONS.length*100)+'%';
       steps();
       var c=$('#dga-s-q');
       if(dir){
@@ -153,7 +152,6 @@ __QUESTIONS__
       last = score();
       buildBars();
       buildRec();
-      rail.style.width='100%';
       show('#dga-s-res');
     }
 
@@ -210,10 +208,10 @@ __QUESTIONS__
     $('#dga-next').onclick=function(){ i<QUESTIONS.length-1 ? (i++,paint(1)) : results() };
     $('#dga-back').onclick=function(){ if(i>0){ i--; paint(-1) } };
     $('#dga-again').onclick=function(){
-      ans=new Array(QUESTIONS.length).fill(null); i=0; rail.style.width='0%';
+      ans=new Array(QUESTIONS.length).fill(null); i=0;
       $('#dga-vault').classList.remove('open'); $('#dga-gate').style.display=''; $('#dga-post').hidden=true;
-      $('#dga-confirm').hidden=true;
-      $('#dga-mail').value=''; $('#dga-mail').classList.remove('bad'); $('#dga-err').textContent='';
+      $('#dga-confirm').hidden=true; sent++;
+      $('#dga-mail').value=''; $('#dga-hp').value=''; $('#dga-mail').classList.remove('bad'); $('#dga-err').textContent='';
       var b=$('#dga-send'); b.disabled=false; b.innerHTML='Unlock results <span class="arr">&rarr;</span>';
       show('#dga-s-intro');
     };
@@ -232,9 +230,11 @@ __QUESTIONS__
       }
 
       var btn=$('#dga-send'); btn.disabled=true; btn.innerHTML='Unlocking\u2026';
-      deliver(v, payload());
+      var c=$('#dga-confirm'); c.classList.remove('fail');
+      c.querySelector('span').innerHTML='A copy is on its way to <b id="dga-confirmmail"></b>.';
       $('#dga-confirmmail').textContent=v;
-      $('#dga-confirm').hidden=false;
+      c.hidden=false;
+      deliver(v, payload());
       unlock();
     });
 
@@ -256,15 +256,27 @@ __QUESTIONS__
           return { area:a.label, score:p.score, max:4, label:p.label, needsValidation:p.dk, mostlyUnknown:p.mostlyUnknown } }),
         firstToInvestigate: last.first.map(function(n){ return AREAS[n].label }),
         noSignificantGaps: last.first.length===0,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
+        website: $('#dga-hp').value,                /* honeypot: people never see it */
+        page: location.href.slice(0,300),
+        source: 'embed v__VERSION__'
       };
     }
 
+    /* Never blocks the visitor: results unlock at once. If the email copy can't be
+       sent, the confirmation line says so instead of promising it. */
+    var sent=0;
     function deliver(email, data){
       data.email = email;
       if(!ENDPOINT){ console.log('[assessment] demo mode \u2014 would POST:', data); return }
-      fetch(ENDPOINT,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) })
-        .catch(function(){ /* never block the user on a failed post */ });
+      var mine=++sent;
+      fetch(ENDPOINT,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data), keepalive:true })
+        .then(function(r){ if(!r.ok) throw new Error(r.status) })
+        .catch(function(){
+          if(mine!==sent) return;                  /* Start over was pressed meanwhile */
+          var c=$('#dga-confirm'); c.classList.add('fail');
+          c.querySelector('span').textContent='We couldn\u2019t send the email copy just now. Your results are below.';
+        });
     }
 
     function unlock(){

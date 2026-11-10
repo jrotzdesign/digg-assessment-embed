@@ -58,7 +58,16 @@ def new_page(browser, mobile):
     ctx.route('https://www.thediggagency.com/**', her_site)
     ctx.route('**/contact-us/**', lambda r: r.fulfill(status=200, content_type='text/html', body='<title>contact stub</title>contact'))
     page = ctx.new_page()
-    page._errors, page._payloads = [], []
+    page._errors, page._payloads, page._lead = [], [], {'status': 200, 'origins': []}
+    def lead_api(route):
+        # Stands in for /api/lead (embed: digg-assessment.pages.dev, production: same origin).
+        if route.request.method == 'POST':
+            page._payloads.append(json.loads(route.request.post_data))
+            page._lead['origins'].append(route.request.headers.get('origin'))
+        st = page._lead['status']
+        route.fulfill(status=st, content_type='application/json', headers={'access-control-allow-origin': '*'},
+                      body='{"ok":true}' if st == 200 else '{"error":"send"}')
+    ctx.route('**/api/lead', lead_api)
     page.on('pageerror', lambda e: page._errors.append('pageerror: ' + str(e)))
     def on_console(m):
         if m.type == 'error':
@@ -71,9 +80,9 @@ def new_page(browser, mobile):
 def no_sideways(page):
     return page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
 
-def open_embed(page):
+def open_embed(page, fixture='assessment.html'):
     page.goto('about:blank')
-    page.goto(EMB + '/assessment.html', wait_until='load')
+    page.goto(EMB + '/' + fixture, wait_until='load')
     page.wait_for_selector('#digg-assessment #dga-start')
 
 def open_prod(page):
@@ -99,7 +108,10 @@ def submit_email(page, P, email):
     page.click(f'#{P}send')
 
 def strip(p):
-    p = dict(p); p.pop('completedAt', None); return p
+    # page and source differ by design (embed vs demo site); everything else must match
+    p = dict(p)
+    for k in ('completedAt', 'page', 'source'): p.pop(k, None)
+    return p
 
 STYLE_PROPS = ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'color',
                'background-color', 'padding-top', 'padding-left', 'border-top-width', 'border-top-color',
@@ -157,6 +169,17 @@ def run_device(pw, name, browser, mobile):
     check(band[3] == 0 and abs(band[4] - pe.evaluate('document.documentElement.clientWidth')) <= 1, f'container is full width ({band[4]}px)')
     pe.screenshot(path=f'{SHOTS}/{tag}-1-intro.png')
     check(no_sideways(pe), 'no sideways scroll: intro')
+    # v1.0.1 layout: no top rail, no viewport min-height, 80px (48px on phones) under the card
+    lay = pe.evaluate('''() => { const r = document.querySelector('#digg-assessment'), cs = getComputedStyle(r);
+        const f = document.querySelector('.elementor-location-footer').getBoundingClientRect();
+        return [!!document.querySelector('#dga-rail'), cs.minHeight, cs.paddingBottom, Math.round(f.top - r.getBoundingClientRect().bottom)]; }''')
+    want_pb = '48px' if mobile else '80px'
+    check(lay[0] is False, 'no progress rail in the page')
+    check(lay[1] in ('0px', 'auto') and lay[2] == want_pb, f'container min-height {lay[1]}, padding-bottom {lay[2]} (want 0 and {want_pb})')
+    check(lay[3] == 0, f'footer follows the assessment directly (gap {lay[3]}px)')
+    hp = pe.evaluate('''() => { const h = document.querySelector('#dga-hp'), b = h.getBoundingClientRect();
+        return [h.tabIndex, h.getAttribute('aria-hidden'), getComputedStyle(h).position, b.right <= 0 || getComputedStyle(h).opacity === '0']; }''')
+    check(hp == [-1, 'true', 'absolute', True], f'honeypot is off-screen, unfocusable and hidden from screen readers {hp}')
 
     # ---------- 2. scroll behaviour ----------
     y0 = pe.evaluate('scrollY'); pe.click('#dga-start'); pe.wait_for_timeout(900)
@@ -214,8 +237,10 @@ def run_device(pw, name, browser, mobile):
             areas: [...document.querySelectorAll('#dga-rec .pick-area > span:first-child')].map(e => e.textContent),
             bars: document.querySelector('#dga-bars').innerText, rec: document.querySelector('#dga-rec').innerText})''')
         check(state['gate'] == 'none' and state['post'] and 'jane.doe@acme-manufacturing.com' in state['confirm'], f'{pname}: unlocked, confirmation shown, CTA visible')
-        check(len(pe._payloads) == 1, f'{pname}: one demo-mode payload logged')
+        check(len(pe._payloads) == 1, f'{pname}: one lead POSTed to /api/lead')
         p = pe._payloads[0] if pe._payloads else {}
+        check(p.get('source') == 'embed v1.0.1' and str(p.get('page', '')).startswith(EMB) and p.get('website') == ''
+              and pe._lead['origins'] == [EMB], f'{pname}: payload has source, page, empty honeypot; sent with Origin {pe._lead["origins"]}')
         exp = {
             'P1_all_A': lambda s: s['picks'] == 0 and s['nogaps'] and s['flagged'] == 0 and s['segs'] == 0,
             'P2_all_D': lambda s: s['picks'] == 5 and s['first'] == 5 and s['flagged'] == 5 and s['more'] == 5 and s['segs'] == 10,
@@ -256,6 +281,35 @@ def run_device(pw, name, browser, mobile):
             fs = pp.evaluate('getComputedStyle(document.querySelector("#mail")).fontSize')
             check(fs == ('16px' if mobile else '14.5px'), f'production email field font-size {fs}')
         ctx.close()
+
+    # ---------- 3b. email copy could not be sent ----------
+    ctx, pe = new_page(browser, mobile); open_embed(pe)
+    answer_all(pe, 'dga-', PATHS['P3_mixed'][0], '')
+    pe._lead['status'] = 502
+    submit_email(pe, 'dga-', 'jane.doe@acme-manufacturing.com'); pe.wait_for_timeout(1500)
+    st = pe.evaluate('''() => { const c = document.querySelector('#dga-confirm');
+        return [c.innerText, c.classList.contains('fail'), getComputedStyle(c.querySelector('svg')).display,
+                getComputedStyle(document.querySelector('#dga-gate')).display]; }''')
+    check(st[0] == 'We couldn’t send the email copy just now. Your results are below.' and st[1] and st[2] == 'none' and st[3] == 'none',
+          f'send failure: results still unlock, line says the copy was not sent ({st[0]!r})')
+    if not mobile: pe.screenshot(path=f'{SHOTS}/{tag}-5-send-failed.png')
+    pe._lead['status'] = 200
+    pe.click('#dga-again'); answer_all(pe, 'dga-', PATHS['P1_all_A'][0], '')
+    submit_email(pe, 'dga-', 'ops@acme-manufacturing.com'); pe.wait_for_timeout(1200)
+    st = pe.evaluate('[document.querySelector("#dga-confirm").innerText, document.querySelector("#dga-confirm").classList.contains("fail")]')
+    check(st == ['A copy is on its way to ops@acme-manufacturing.com.', False], f'after Start over a good send shows the normal line {st}')
+    emb_errors += [e for e in pe._errors if '502' not in e]; ctx.close()
+
+    # ---------- 3c. her current widget CSS (!important overrides) still in place ----------
+    ctx, pe = new_page(browser, mobile); open_embed(pe, 'assessment-override.html'); pe.wait_for_timeout(800)
+    lay = pe.evaluate('''() => { const r = document.querySelector('#digg-assessment'), cs = getComputedStyle(r);
+        return [!!document.querySelector('#dga-rail'), cs.minHeight, cs.paddingBottom]; }''')
+    check(lay[0] is False and lay[1] in ('0px', 'auto') and lay[2] == want_pb, f'with her !important widget CSS: no rail, min-height {lay[1]}, padding-bottom {lay[2]}')
+    answer_all(pe, 'dga-', PATHS['P3_mixed'][0], ''); submit_email(pe, 'dga-', 'jane.doe@acme-manufacturing.com'); pe.wait_for_timeout(1500)
+    check(len(pe._payloads) == 1 and not pe.evaluate('document.querySelector("#dga-confirm").classList.contains("fail")'), 'with her widget CSS: lead sent, results unlocked')
+    pe.screenshot(path=f'{SHOTS}/{tag}-6-override-results.png', full_page=True)
+    check(no_sideways(pe), 'with her widget CSS: no sideways scroll')
+    emb_errors += pe._errors; ctx.close()
 
     # ---------- 4. intro/question/gate styles vs production ----------
     ctx, pe = new_page(browser, mobile); open_embed(pe)

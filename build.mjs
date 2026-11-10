@@ -47,7 +47,7 @@ console.log('CSS: all selectors scoped');
 
 // 3. Assemble
 let out = app
-  .replace('__VERSION__', version)
+  .replaceAll('__VERSION__', version)
   .replace('__CSS__', () => JSON.stringify(css))
   .replace('__HTML__', () => JSON.stringify(html))
   .replace('__QUESTIONS__', () => questions);

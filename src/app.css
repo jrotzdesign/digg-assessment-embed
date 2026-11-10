@@ -14,11 +14,9 @@
 #digg-assessment{-webkit-text-size-adjust:100%}
 #digg-assessment *{box-sizing:border-box;margin:0;padding:0}
 #digg-assessment{font-family:Montserrat,system-ui,sans-serif;color:var(--ink);background:#fff;position:relative;isolation:isolate;
-  min-height:calc(100vh - 96px);min-height:calc(100svh - 96px);padding-top:124px;padding-bottom:90px;display:flex;align-items:flex-start;justify-content:center;padding-left:18px;padding-right:18px;line-height:1.55}
+  min-height:0;padding-top:124px;padding-bottom:80px;display:flex;align-items:flex-start;justify-content:center;padding-left:18px;padding-right:18px;line-height:1.55}
 #digg-assessment img{display:block;max-width:100%}
 #digg-assessment button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
-#digg-assessment #dga-rail{position:fixed;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,.16);z-index:60}
-#digg-assessment #dga-rail i{display:block;height:100%;width:0;background:var(--orange);transition:width .55s var(--ease)}
 #digg-assessment .shell{width:100%;max-width:780px}
 /* purple band behind the header and the top of the card, with the same angled corner as the home hero */
 #digg-assessment::before{content:"";position:absolute;left:0;right:0;top:0;height:400px;z-index:-1;background:var(--grad);clip-path:polygon(0 0,100% 0,100% calc(100% - 70px),calc(100% - 120px) 100%,0 100%)}
@@ -122,6 +120,10 @@
   border-radius:var(--dg-radius);background:var(--soft);font-family:"Open Sans",sans-serif;font-size:13.5px;color:var(--gray)}
 #digg-assessment .confirm svg{flex:none;color:var(--purple)}
 #digg-assessment .confirm b{font-family:Montserrat;font-weight:700;color:var(--ink)}
+#digg-assessment .confirm.fail{background:rgba(247,85,26,.08);color:var(--ink)}
+#digg-assessment .confirm.fail svg{display:none}
+/* honeypot: off-screen, never focused, ignored by screen readers */
+#digg-assessment .hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;opacity:0}
 #digg-assessment .sent{font-family:"Open Sans",sans-serif;font-size:13.5px;color:var(--purple);font-weight:600}
 #digg-assessment .screen{display:none}
 #digg-assessment .screen.on{display:block;animation:dga-in .4s var(--ease) both}
@@ -140,7 +142,8 @@
 #digg-assessment .opt[aria-checked=true] .dot::after{animation:dga-pop .34s var(--ease) both}
 @keyframes dga-pulse{0%,100%{opacity:1}50%{opacity:.45}}
 #digg-assessment .step.now span{animation:dga-pulse 2.4s ease-in-out infinite}
-@media(max-width:640px){#digg-assessment::before{height:340px;clip-path:polygon(0 0,100% 0,100% calc(100% - 40px),calc(100% - 70px) 100%,0 100%)}
+@media(max-width:640px){#digg-assessment{padding-bottom:48px}
+#digg-assessment::before{height:340px;clip-path:polygon(0 0,100% 0,100% calc(100% - 40px),calc(100% - 70px) 100%,0 100%)}
 #digg-assessment .card{padding:30px 22px 28px}
 #digg-assessment .meta{gap:16px}
 #digg-assessment .steps{gap:5px}
